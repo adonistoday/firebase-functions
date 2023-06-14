@@ -1,33 +1,62 @@
 const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+const nodemailer = require("nodemailer");
+const cors = require("cors")({origin: true});
+admin.initializeApp();
 
-// // Create and deploy your first functions
-// // https://firebase.google.com/docs/functions/get-started
-//
-exports.helloWorld = functions.https.onRequest((request, response) => {
-  functions.logger.info("Hello logs!", {structuredData: true});
-  const email=request.email;
-  response.send("Hello from Firebase!", email);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "codemaster9428@gmail.com",
+    pass: "gaveycocpblhikdg",
+  },
 });
 
-// const admin = require("firebase-admin");
+exports.sendMail = functions.https.onRequest((req, res) => {
+  cors(req, res, () => {
+    // getting dest email by query string
+    const dest = req.query.dest;
+    const mailOptions = {
+      from: "kiru Natarajan <codemaster9428@gmail.com>",
+      to: dest,
+      subject: "Reset your Password!", // email subject
+      html: `
+        <a href="https://maiinn.xyz/reset-password.html?email=${dest}">
+        Please reset your password</a>
+      `, // email content in HTML
+    };
 
-// admin.initializeApp();
+    // returning result
+    return transporter.sendMail(mailOptions, (erro, info) => {
+      if (erro) {
+        return res.send(erro.toString());
+      }
+      return res.send("Email sent!");
+    });
+  });
+});
 
-// exports.sendPasswordResetEmail =
-// functions.https.onCall(async (data, context) => {
-//   try {
-//     const email = data.email;
+exports.updatePassword = functions.https.onRequest((req, res) => {
+  cors(req, res, () => {
+    const {email, newPassword} = req.query;
+    admin.auth().getUserByEmail(email)
+        .then((userRecord) => {
+          admin.auth().updateUser(userRecord.uid, {password: newPassword})
+              .then(() => {
+                // Update successful
+                return res.send("Password updated successfully.");
+              })
+              .catch((error) => {
+                // An error occurred while updating the password
+                return res.send(error.toString());
+              });
+          // return res.send(userRecord.uid);
+        })
+        .catch((error) => {
+        // User not found or error occurred
+          return res.send(error.toString());
+        });
+  });
+});
 
-//     if (!email) {
-//       throw new Error("Email is required.");
-//     }
 
-//     await admin.auth().sendPasswordResetEmail(email);
-
-//  return {success: true, message: "Password reset email sent successfully."};
-//   } catch (error) {
-//     console.error("Error sending password reset email:", error);
-//     throw new functions.https.HttpsError("internal",
-//         "Error sending password reset email.");
-//   }
-// });
