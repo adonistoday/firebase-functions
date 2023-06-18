@@ -44,7 +44,33 @@ exports.updatePassword = functions.https.onRequest((req, res) => {
           admin.auth().updateUser(userRecord.uid, {password: newPassword})
               .then(() => {
                 // Update successful
-                return res.send("Password updated successfully.");
+                admin
+                    .firestore()
+                    .collection("business-list")
+                    .where("email", "==", email)
+                    .get()
+                    .then((querySnapshot) => {
+                      if (querySnapshot.empty) {
+                        return res.send("No business found with",
+                            " the provided email.");
+                      }
+
+                      // Assuming there is only onebusiness with the given email
+                      const businessDoc = querySnapshot.docs[0];
+                      const businessRef = businessDoc.ref;
+
+                      // Update the password field
+                      return businessRef.update({password: newPassword})
+                          .then(() => {
+                            return res.send("Password updated successfully.");
+                          })
+                          .catch((error) => {
+                            return res.send(error.toString());
+                          });
+                    })
+                    .catch((error) => {
+                      return res.send(error.toString());
+                    });
               })
               .catch((error) => {
                 // An error occurred while updating the password
